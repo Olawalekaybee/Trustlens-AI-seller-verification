@@ -5,6 +5,7 @@ from app.db.database import get_db
 from app.models.seller import Seller
 from app.models.report import Report
 from app.schemas.report import ReportCreate, ReportResponse
+from app.services.evidence_builder import build_report_evidence_text
 
 router = APIRouter(
     prefix="/reports",
@@ -38,3 +39,25 @@ def get_reports_by_seller(seller_id: int, db: Session = Depends(get_db)):
     return db.query(Report).filter(
         Report.seller_id == seller_id
     ).order_by(Report.created_at.desc()).all()
+    
+    
+    
+@router.get("/{report_id}/evidence-text")
+def get_report_evidence_text(report_id: int, db: Session = Depends(get_db)):
+    report = db.query(Report).filter(Report.id == report_id).first()
+
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    seller = db.query(Seller).filter(Seller.id == report.seller_id).first()
+
+    if not seller:
+        raise HTTPException(status_code=404, detail="Seller not found")
+
+    evidence_text = build_report_evidence_text(seller, report)
+
+    return {
+        "report_id": report.id,
+        "seller_id": seller.id,
+        "evidence_text": evidence_text
+    }
